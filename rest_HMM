@@ -1,0 +1,208 @@
+# %% load the required modules
+import pandas as pd
+import glob
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+from collections import defaultdict, Counter
+
+###########################################################################
+# %%
+# Directory path containing nested directories with CSV files
+root_directory = '/mnt/keoki/experiments2/EmoRep/Exp2_Compute_Emotion/' + \
+'data_scanner_BIDS/derivatives/classify_rest/'
+
+# Pattern to match CSV files in nested directories
+task='movies'
+
+csv_pattern = f"{root_directory}/sub-*/ses-*/func/df_*{task}.csv"
+
+
+# Retrieve all file paths matching the csv_patter using glob.glob
+csv_files = glob.glob(csv_pattern)
+
+# Initialize an empty list to store DataFrames
+dfs = []
+
+# Read each CSV file into a DataFrame and append it to the list
+for file_path in csv_files:
+    df = pd.read_csv(file_path,index_col=False)
+    dfs.append(df)
+
+# Combine all DataFrames into a single DataFrame
+combined_df = pd.concat(dfs, ignore_index=True)
+
+# Display or process the combined DataFrame as needed
+print(combined_df.head())
+
+#########################################################################
+# %%
+#combined_df=pd.DataFrame(combined_df)
+
+emo_sequence = combined_df['label_max']
+
+#emo_sequence=emo_sequence.values.tolist
+
+#print(emo_sequence.head())
+
+# Create a mapping from string values to numerical categories
+categories = {val: idx for idx, val in enumerate(sorted(set(emo_sequence)))}
+
+# Convert string values to numerical categories
+numerical_emo_sequence = np.array([categories[val] for val in emo_sequence])
+
+# Get unique numerical categories and their counts
+unique_categories, counts = np.unique(numerical_emo_sequence, return_counts=True)
+
+# Define colors for each category
+colors =distinct_colors = [
+    'red',
+    'green',
+    'blue',
+    'orange',
+    'purple',
+    'cyan',
+    'magenta',
+    'yellow',
+    'lime',
+    'pink',
+    'teal',
+    'gold',
+    'orchid',
+    'slateblue',
+    'springgreen'
+][:len(unique_categories)]
+
+# Plotting a histogram for each category with different colors
+plt.figure(figsize=(24, 16))
+for category, count, color in zip(unique_categories, counts, colors):
+    plt.bar(category, count, color=color, label=list(categories.keys())[list(categories.values()).index(category)])
+
+# Customize the plot labels and title
+plt.xlabel('Emotion',fontsize=30)
+plt.ylabel('Frequency',fontsize=30)
+plt.title('Distribution of Emotional States at Rest (All Participants)',fontsize=30,pad=20)
+plt.xticks(unique_categories,[list(categories.keys())[list(categories.values()).index(cat)] for cat in unique_categories], 
+           fontsize=30,rotation=90)
+plt.yticks(fontsize=30)
+plt.tight_layout
+#plt.legend(fontsize=15)
+plt.show()
+
+#################################################################################
+# %% Transition probability matrix
+# Replace this with your sequence of observations (list of string-valued states)
+#emo_sequence = ['A', 'B', 'C', 'A', 'B', 'A', 'C', 'C', 'B', 'A']
+
+# Create a dictionary to map unique states to integers
+states = sorted(set(emo_sequence))
+state_indices = {state: idx for idx, state in enumerate(states)}
+
+# Convert sequence of string states to a sequence of integer indices
+indices_sequence = [state_indices[state] for state in emo_sequence]
+
+# Calculate transition matrix from the sequence of states
+num_states = len(states)
+transition_matrix = np.zeros((num_states, num_states))
+
+for i in range(len(indices_sequence) - 1):
+    current_state = indices_sequence[i]
+    next_state = indices_sequence[i + 1]
+    transition_matrix[current_state][next_state] += 1
+
+# Normalize transition matrix to obtain transition probabilities
+transition_matrix /= transition_matrix.sum(axis=1, keepdims=True)
+
+# Create a mask to threshold transition probabilities
+threshold = 0.1
+masked_matrix = np.ma.masked_where(transition_matrix < threshold, transition_matrix)
+
+# Define a colormap for values above the threshold
+cmap = plt.cm.plasma
+tpm_colors = cmap(np.arange(cmap.N))
+tpm_colors[0] = (1, 1, 1, 0.0)  # Set color for values below the threshold (transparent white)
+
+new_cmap = LinearSegmentedColormap.from_list('truncated_cmap', tpm_colors)
+
+# Visualize the thresholded transition probability matrix
+plt.figure(figsize=(24, 16))
+plt.imshow(masked_matrix, cmap=new_cmap, interpolation='nearest')
+cbar = plt.colorbar()
+cbar.set_label('Transition Probability', fontsize=25)
+cbar.ax.tick_params(labelsize=20)
+
+plt.title('Transition Probability Matrix (Threshold = 0.1)',fontsize=30)
+plt.xlabel('Next State',fontsize=30)
+plt.ylabel('Current State',fontsize=30)
+plt.xticks(np.arange(num_states), states,fontsize=25,rotation=90)
+plt.yticks(np.arange(num_states), states,fontsize=25)
+plt.tight_layout()
+plt.show()
+
+############################################################################
+# %% plot the proportion of each emotion over time; 
+
+# volume sequence
+volume_sequence = combined_df['volume']
+
+volume_sequence=list(volume_sequence)
+
+emo_sequence=list(emo_sequence)
+
+# %%
+# Example sequences (replace these with your actual sequences)
+integers_sequence = volume_sequence
+states_sequence = emo_sequence
+
+# Create a defaultdict to map integers to lists of corresponding states
+integers_to_states = defaultdict(list)
+
+for i, integer in enumerate(integers_sequence):
+    integers_to_states[integer].append(states_sequence[i])
+
+# Count occurrences of different states for each integer
+counts_per_integer = {}
+for integer, states_list in integers_to_states.items():
+    counts_per_integer[integer] = dict(Counter(states_list))
+
+# Display counts of different states for each integer
+#for integer, counts in counts_per_integer.items():
+#    print(f"Integer {integer}:", counts)
+
+# Create a DataFrame from counts_per_integer
+df = pd.DataFrame(counts_per_integer).fillna(0).astype(int).T
+
+#print("DataFrame showing counts of different states for each integer:")
+#print(df.head())
+
+normalized_df = df.div(df.sum(axis=1), axis=0)
+
+normalized_df = normalized_df.sort_index(axis=1)
+
+#print(normalized_df.head())
+
+# %%
+# Plotting multiple time series in subplots with different colors
+# Set overall figure size
+fig, axs = plt.subplots(nrows=5, ncols=3, figsize=(12, 8))  # Use subplots to access axs
+
+# Create a list of colors for each series
+#colors = plt.cm.tab20.colors[:len(normalized_df.columns)]
+
+for i, column, color in zip(range(1, 16, 1), normalized_df.columns, colors):
+    row = (i - 1) // 3  # Calculate the row for the subplot
+    col = (i - 1) % 3  # Calculate the column for the subplot
+
+    # Create a subplot for each series
+    axs[row, col].plot(normalized_df.index, normalized_df[column], label=column, color=color)
+    axs[row, col].set_title(column,fontsize=20)  # Set title for each subplot
+    #axs[row, col].legend()  # Show legend for each subplot
+    axs[row, col].tick_params(axis='x', labelsize=15)  # Set x-axis label font size
+    axs[row, col].tick_params(axis='y', labelsize=15)  # Set x-axis label font size
+
+fig.suptitle('Proportion of Each Emotion Over Time (volume)', fontsize=24)
+
+plt.tight_layout()  # Adjust subplot layout to prevent overlap
+plt.show()
+
+# %%
