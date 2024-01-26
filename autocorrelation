@@ -1,0 +1,90 @@
+# %%
+import numpy as np
+import pandas as pd
+import glob
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from collections import defaultdict, Counter
+
+# Directory path containing nested directories with CSV files
+root_directory = '/mnt/keoki/experiments2/EmoRep/Exp2_Compute_Emotion/' + \
+'data_scanner_BIDS/derivatives/classify_rest/'
+
+# Pattern to match CSV files in nested directories
+task='movies'
+
+csv_pattern = f"{root_directory}/sub-*/ses-*/func/df_*{task}.csv"
+
+
+# Retrieve all file paths matching the csv_patter using glob.glob
+csv_files = glob.glob(csv_pattern)
+
+# Initialize an empty list to store DataFrames
+dfs = []
+
+# Read each CSV file into a DataFrame and append it to the list
+for file_path in csv_files:
+    df = pd.read_csv(file_path,index_col=False)
+    dfs.append(df)
+
+# Combine all DataFrames into a single DataFrame
+combined_df = pd.concat(dfs, ignore_index=True)
+
+# Display or process the combined DataFrame as needed
+print(combined_df.head())
+
+
+# %%
+emo_df=combined_df.drop(['volume','label_max'], axis=1)
+
+#combined_array=combined_df.values
+# Extracting column names before reshaping
+column_names = emo_df.columns.tolist()
+
+# Convert the DataFrame to a 3D NumPy array
+emo_array = emo_df.values.reshape (177, 15, 240)
+
+# Displaying the shape of the resulting 3D NumPy array
+print("Shape of 3D NumPy array:", emo_array.shape)
+
+# %%
+# Calculating lag-one autocorrelation for each time series for each participant
+autocorrelation_results = []
+
+for participant in emo_array:
+    participant_autocorrelation = []
+    for series in participant:
+        # Calculate lag-one autocorrelation for each series
+        autocorr = np.corrcoef(series[:-1], series[1:])[0, 1]
+        participant_autocorrelation.append(autocorr)
+    
+    autocorrelation_results.append(participant_autocorrelation)
+
+# Convert results to a Pandas DataFrame for better organization
+df_autocorr = pd.DataFrame(autocorrelation_results)
+df_autocorr.index.name = 'Participant'
+df_autocorr.columns = column_names
+
+print(df_autocorr)
+
+# %%
+import matplotlib.pyplot as plt
+
+# Plotting histograms for each time series with different colors
+plt.figure(figsize=(12, 8))
+
+colors = plt.cm.get_cmap('tab20', 15)  # Choosing a colormap with 15 colors
+
+for i, column in enumerate(df_autocorr.columns):
+    # Extracting the name of the time series from the column label
+    series_name = column.split('_')[1]  # Assuming column names are in the format 'TimeSeries_X'
+    
+    # Plotting histogram with the title containing the time series name
+    plt.hist(df_autocorr[column], bins=20, alpha=0.7, label=f'TimeSeries_{i+1}', color=colors(i))
+    plt.title(f'Histogram of Lag-one Autocorrelation for Time Series {series_name}')
+    plt.xlabel('Lag-one Autocorrelation')
+    plt.ylabel('Frequency')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+# %%
