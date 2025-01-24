@@ -184,14 +184,14 @@ def get_indiv_tms(seqs):
     for subj_id, seq in seqs.items():
         adj_seq = [s - 1 for s in seq if s > 0]
         tms[subj_id] = transition_matrix([adj_seq])
-    # Create a mask to threshold transition probabilities
-    threshold = 0.05
-    for subj, tm in list(tms.items()): 
-        tms[subj] = np.ma.masked_where(tm < threshold, tm)
     return tms
 
 def plot_tm(tm, cols):
     # Plot Transition Matrix
+    # Create a mask to threshold transition probabilities
+    threshold = 0.05 
+    tm = np.ma.masked_where(tm < threshold, tm)
+
     # Define a colormap for values above the threshold
     cmap = plt.cm.plasma
     tpm_colors = cmap(np.arange(cmap.N))
@@ -230,16 +230,28 @@ def calc_emo_reset(tms):
 
 def plot_emo_reset(emo_reset):
     # Plot emotional resetting
-    subjs = list(emo_reset.keys())
-    resets = list(emo_reset.values())
-    plt.figure(figsize=(6, 6))
-    plt.scatter(subjs, resets, color='skyblue')
-    plt.xlabel("Subject ID")
+    # subjs = list(emo_reset.keys())
+    resets = np.array(list(emo_reset.values()))
+
+    median = np.median(resets)
+    q1 = np.percentile(resets, 25)
+    q3 = np.percentile(resets, 75)
+    x = np.random.normal(1, 0.05, size=len(resets))
+
+    plt.figure(figsize=(4, 6))
+    plt.scatter(x, resets, color='skyblue')
+    plt.axhline(y=median, color='red', linestyle='--', linewidth=2, label=f'Median ({median:.2f})')
+    plt.axhline(y=q1, color='orange', linestyle=':', linewidth=1.5, label=f'Q1 ({q1:.2f})')
+    plt.axhline(y=q3, color='orange', linestyle=':', linewidth=1.5, label=f'Q3 ({q3:.2f})')
+
+    # plt.xlabel("Subject ID")
     plt.ylabel("Probability of Transitioning to Neutral")
     plt.title("Emotional Resetting")
-    #plt.xticks(subjs, rotation=45)
+    plt.xticks([1], ["Emotional Resetting"])
+    # plt.xticks(subjs, rotation=45)
     plt.ylim(0, 1)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
@@ -256,18 +268,33 @@ def calc_inertia(seqs):
 
 def plot_inertia(emo_inertia):
     # Plot emotional inertia values
-    subjs = list(emo_inertia.keys())
-    resets = list(emo_inertia.values())
-    plt.figure(figsize=(6, 6))
-    plt.scatter(subjs, resets, color='skyblue')
-    plt.xlabel("Subject ID")
+    # subjs = list(emo_inertia.keys())
+    inertia = np.array(list(emo_inertia.values()))
+
+    median = np.median(inertia)
+    q1 = np.percentile(inertia, 25)
+    q3 = np.percentile(inertia, 75)
+    x = np.random.normal(1, 0.05, size=len(inertia))
+
+    plt.figure(figsize=(4, 6))
+    plt.scatter(x, inertia, color='skyblue', label='Emotional Inertia', alpha=0.7)
+    plt.axhline(y=median, color='red', linestyle='--', linewidth=2, label=f'Median ({median:.2f})')
+    plt.axhline(y=q1, color='orange', linestyle=':', linewidth=1.5, label=f'Q1 ({q1:.2f})')
+    plt.axhline(y=q3, color='orange', linestyle=':', linewidth=1.5, label=f'Q3 ({q3:.2f})')
+    
+    # plt.scatter(subjs, resets, color='skyblue')
+    # plt.xlabel("Subject ID")
     plt.ylabel("Probability of Staying in the Same State")
     plt.title("Emotional Inertia")
-    #plt.xticks(subjs, rotation=45)
+    plt.xticks([1], ["Emotional Inertia"])
     plt.ylim(0, 1)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.legend()
     plt.tight_layout()
     plt.show()
 
-emo_inertia = calc_inertia(emo_seqs)
-plot_inertia(emo_inertia)
+
+tms = get_indiv_tms(emo_seqs)
+emo_reset = calc_emo_reset(tms)
+# emo_inertia = calc_inertia(emo_seqs)
+plot_emo_reset(emo_reset)
