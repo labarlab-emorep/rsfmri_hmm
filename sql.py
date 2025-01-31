@@ -10,7 +10,9 @@ import pymysql
 import paramiko
 from sshtunnel import SSHTunnelForwarder
 
-rsa_ls2 = paramiko.RSAKey.from_private_key_file(os.environ["RSA_KEY"])
+RSA_KEY = "/Users/averytandon/.ssh/rsa_key"
+SQL_PASS = 'mango'
+rsa_ls2 = paramiko.RSAKey.from_private_key_file(RSA_KEY)
 
 # %%
 class _DbConnect:
@@ -50,7 +52,7 @@ class _DbConnect:
     def __init__(self):
         """Initialize."""
         try:
-            os.environ["SQL_PASS"]
+            SQL_PASS
         except KeyError as e:
             raise Exception(
                 "No global variable 'SQL_PASS' defined in user env"
@@ -68,7 +70,7 @@ class _DbConnect:
         self.con = pymysql.connect(
             host="127.0.0.1",
             user="ajt63",
-            passwd=os.environ["SQL_PASS"],
+            passwd=SQL_PASS,
             db="db_emorep",
             port=ssh_tunnel.local_bind_port,
         )

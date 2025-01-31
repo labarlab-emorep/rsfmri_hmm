@@ -23,6 +23,7 @@ import seaborn as sns
 # visualize the tpm as a directed graph
 #import pygraphviz as pgv
 
+##%
 # Query db_emorep and read in the dot products (emotion scores) 
 # of emotion map and resting state fMRI data
 db_con = sql._DbConnect()
@@ -220,12 +221,17 @@ def plot_tm(tm, cols):
     plt.tight_layout()
     plt.show()
 
-def calc_emo_reset(tms):
+def calc_emo_reset(seqs):
     # Calculate emotional resetting
     neutral_idx = 11
     emo_reset = {}
-    for sub, x in tms.items():
-        emo_reset[sub] = sum(x[i][neutral_idx] for i in range(x.shape[0]) if i!=11)
+    for sub, x in seqs.items():
+        count = 0
+        for i in range(len(x)):
+            if (i+1) < len(x):
+                if x[i+1]==neutral_idx:
+                    if x[i]!=11: count += 1
+        emo_reset[sub] = count / 239
     return emo_reset
 
 def plot_emo_reset(emo_reset):
@@ -262,7 +268,8 @@ def calc_inertia(seqs):
         count = 0
         for i in range(len(seq)):
             if (i+1) < len(seq):
-                if seq[i] == seq[i+1]: count += 1
+                if seq[i] == seq[i+1]:
+                    if seq[i]!=11: count += 1
         emo_inertia[sub] = count / 240
     return emo_inertia
 
@@ -294,7 +301,7 @@ def plot_inertia(emo_inertia):
     plt.show()
 
 
-tms = get_indiv_tms(emo_seqs)
-emo_reset = calc_emo_reset(tms)
+# tms = get_indiv_tms(emo_seqs)
+emo_reset = calc_emo_reset(emo_seqs)
 # emo_inertia = calc_inertia(emo_seqs)
 plot_emo_reset(emo_reset)
